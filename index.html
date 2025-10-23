@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>DG Aiming</title>
 <style>
-html, body {margin:0; padding:0; overflow:hidden; background-color:skyblue; font-family:sans-serif; height:100%; user-select:none;}
+html, body {margin:0; padding:0; overflow:hidden; background:skyblue; font-family:sans-serif; height:100%; user-select:none;}
 #score, #timer {position:absolute; top:10px; font-size:20px; text-shadow:0 0 5px #000;}
 #score{left:10px;} #timer{right:10px;}
 canvas{display:block;}
@@ -116,9 +116,9 @@ startButton.addEventListener("click",()=>{
   difficulty=difficultySelect.value;
   difficultySettings=difficulties[difficulty];
 
-  // bgm 재생 (사용자 클릭 후)
+  // bgm 재생
   bgm.currentTime=0;
-  bgm.play().catch(()=>console.log("브라우저 정책으로 인해 자동 재생 실패"));
+  bgm.play().catch(()=>console.log("자동재생 실패"));
 
   startScreen.style.display="none";
   startGame();
@@ -163,7 +163,6 @@ function saveScore(name,score,diff){
   allScores[diff].sort((a,b)=>b.score-b.score);
   allScores[diff]=allScores[diff].slice(0,10);
   localStorage.setItem("aimScores",JSON.stringify(allScores));
-  console.log("저장 완료:", allScores); // 기록 확인용
 }
 
 function showLeaderboard(){
