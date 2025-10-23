@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>에임 트레이너 - 이미지 타겟 버전</title>
+  <meta charset="UTF-8" />
+  <title>에임 트레이너 - 난이도별 순위 & 이펙트</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background-color: skyblue; /* ✅ 배경 하늘색으로 변경 */
+      background-color: skyblue;
       color: white;
       font-family: sans-serif;
       user-select: none;
@@ -70,13 +70,26 @@
       border-radius: 12px;
       text-align: center;
       display: none;
+      max-height: 80vh;
+      overflow-y: auto;
     }
 
-    #leaderboard h2 { margin-top: 0; }
+    #leaderboard h2 { margin-top: 0; margin-bottom: 10px; }
+
+    .leaderboard-section {
+      margin-bottom: 20px;
+    }
+
+    .leaderboard-section h3 {
+      margin-bottom: 8px;
+      border-bottom: 1px solid #555;
+      padding-bottom: 5px;
+    }
 
     #leaderboard ol {
       text-align: left;
       padding-left: 20px;
+      margin: 0;
     }
 
     #leaderboard button {
@@ -102,7 +115,7 @@
 
   <div id="startScreen">
     <h1>🎯 에임 트레이너</h1>
-    <input id="nicknameInput" type="text" placeholder="닉네임을 입력하세요">
+    <input id="nicknameInput" type="text" placeholder="닉네임을 입력하세요" />
     <select id="difficultySelect">
       <option value="easy">쉬움</option>
       <option value="normal" selected>보통</option>
@@ -113,7 +126,18 @@
 
   <div id="leaderboard">
     <h2>🏆 순위표</h2>
-    <ol id="leaderboardList"></ol>
+    <div id="easyScores" class="leaderboard-section">
+      <h3>쉬움</h3>
+      <ol></ol>
+    </div>
+    <div id="normalScores" class="leaderboard-section">
+      <h3>보통</h3>
+      <ol></ol>
+    </div>
+    <div id="hardScores" class="leaderboard-section">
+      <h3>어려움</h3>
+      <ol></ol>
+    </div>
     <button id="retryButton">다시 하기</button>
   </div>
 
@@ -127,29 +151,35 @@
     const nicknameInput = document.getElementById("nicknameInput");
     const difficultySelect = document.getElementById("difficultySelect");
     const leaderboard = document.getElementById("leaderboard");
-    const leaderboardList = document.getElementById("leaderboardList");
+    const easyScoresOl = document.querySelector("#easyScores ol");
+    const normalScoresOl = document.querySelector("#normalScores ol");
+    const hardScoresOl = document.querySelector("#hardScores ol");
     const retryButton = document.getElementById("retryButton");
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // 🔹 타겟 이미지 로드
+    // 타겟 이미지 로드
     const targetImg = new Image();
     targetImg.src = "대광.png";
 
     let nickname = "";
     let score = 0;
-    let timeLeft = 20; // ✅ 20초로 유지
+    let timeLeft = 20; // 20초
     let gameRunning = false;
     let targets = [];
     let timerInterval;
     let difficultySettings;
+    let difficultyKey = "normal"; // 현재 선택된 난이도
 
     const difficulties = {
       easy: { targetCount: 3, minRadius: 30, maxRadius: 50 },
       normal: { targetCount: 5, minRadius: 20, maxRadius: 40 },
       hard: { targetCount: 7, minRadius: 15, maxRadius: 30 }
     };
+
+    // 파티클 이펙트용 배열
+    let particles = [];
 
     function random(min, max) {
       return Math.random() * (max - min) + min;
@@ -191,13 +221,47 @@
       });
     }
 
+    // 파티클 생성
+    function createParticles(x, y) {
+      for (let i = 0; i < 15; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          radius: random(2, 4),
+          alpha: 1,
+          speedX: random(-2, 2),
+          speedY: random(-2, 2),
+          life: 30
+        });
+      }
+    }
+
+    // 파티클 그리기 & 업데이트
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.alpha -= 0.03;
+        p.life--;
+        if (p.alpha <= 0 || p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+        ctx.fill();
+      }
+    }
+
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawTargets();
+      updateParticles();
       if (gameRunning) requestAnimationFrame(gameLoop);
     }
 
-    // ✅ 클릭 시 중심 여부에 따라 점수 다르게
     canvas.addEventListener("click", (e) => {
       if (!gameRunning) return;
 
@@ -208,14 +272,14 @@
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance < t.radius) {
-          // 중앙 클릭 판정: 반지름의 30% 이내
           if (distance < t.radius * 0.3) {
-            score += 2; // ✅ 중심 클릭 시 2점
+            score += 2;
+            createParticles(t.x, t.y); // 중앙 클릭 이펙트 발생
           } else {
-            score += 1; // 일반 클릭 시 1점
+            score += 1;
           }
           scoreEl.textContent = `점수: ${score}`;
-          targets[i] = createTarget(); // 클릭된 타겟만 갱신
+          targets[i] = createTarget();
           return;
         }
       }
@@ -228,7 +292,8 @@
         return;
       }
       nickname = name;
-      difficultySettings = difficulties[difficultySelect.value];
+      difficultyKey = difficultySelect.value;
+      difficultySettings = difficulties[difficultyKey];
       startScreen.style.display = "none";
       startGame();
     });
@@ -245,7 +310,7 @@
       scoreEl.textContent = `점수: ${score}`;
       timerEl.textContent = `시간: ${timeLeft}`;
       gameRunning = true;
-
+      particles = [];
       spawnTargets();
       gameLoop();
 
@@ -260,26 +325,44 @@
       gameRunning = false;
       clearInterval(timerInterval);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      saveScore(nickname, score);
+      saveScore(nickname, score, difficultyKey);
       showLeaderboard();
     }
 
-    function saveScore(name, score) {
-      let scores = JSON.parse(localStorage.getItem("aimScores") || "[]");
+    // 난이도별로 점수 저장
+    function saveScore(name, score, difficulty) {
+      let scores = JSON.parse(localStorage.getItem(`aimScores_${difficulty}`) || "[]");
       scores.push({ name, score });
       scores.sort((a, b) => b.score - a.score);
       scores = scores.slice(0, 10);
-      localStorage.setItem("aimScores", JSON.stringify(scores));
+      localStorage.setItem(`aimScores_${difficulty}`, JSON.stringify(scores));
     }
 
     function showLeaderboard() {
-      const scores = JSON.parse(localStorage.getItem("aimScores") || "[]");
-      leaderboardList.innerHTML = "";
-      scores.forEach((s, i) => {
-        const li = document.createElement("li");
-        li.textContent = `${i + 1}. ${s.name} — ${s.score}점`;
-        leaderboardList.appendChild(li);
-      });
+      // 각각 난이도 점수 가져와서 표시
+      const easyScores = JSON.parse(localStorage.getItem("aimScores_easy") || "[]");
+      const normalScores = JSON.parse(localStorage.getItem("aimScores_normal") || "[]");
+      const hardScores = JSON.parse(localStorage.getItem("aimScores_hard") || "[]");
+
+      function fillList(olElem, scores) {
+        olElem.innerHTML = "";
+        if (scores.length === 0) {
+          const li = document.createElement("li");
+          li.textContent = "기록 없음";
+          olElem.appendChild(li);
+          return;
+        }
+        scores.forEach((s, i) => {
+          const li = document.createElement("li");
+          li.textContent = `${i + 1}. ${s.name} — ${s.score}점`;
+          olElem.appendChild(li);
+        });
+      }
+
+      fillList(easyScoresOl, easyScores);
+      fillList(normalScoresOl, normalScores);
+      fillList(hardScoresOl, hardScores);
+
       leaderboard.style.display = "block";
     }
 
