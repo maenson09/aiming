@@ -4,22 +4,22 @@
 <meta charset="UTF-8">
 <title>DG Aiming</title>
 <style>
-  html, body { margin:0; padding:0; overflow:hidden; background-color:skyblue; font-family:sans-serif; height:100%; user-select:none; }
-  #score, #timer { position:absolute; top:10px; font-size:20px; text-shadow:0 0 5px #000; user-select:none; }
-  #score{left:10px;} #timer{right:10px;}
-  canvas{display:block;}
-  #startScreen {position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; background: rgba(0,0,0,0.85); z-index:10;}
-  #startScreen input, #startScreen select {font-size:20px; padding:10px; border-radius:8px; border:none; text-align:center; margin-bottom:15px; width:250px; box-sizing:border-box;}
-  #startScreen button {font-size:20px; padding:10px 20px; background:#28a745; color:white; border:none; border-radius:8px; cursor:pointer; width:150px;}
-  #startScreen button:hover {background:#2ecc71;}
-  #leaderboard {position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); padding:30px 40px; border-radius:12px; text-align:center; color:white; max-height:80vh; overflow-y:auto; z-index:20; display:none; width:300px;}
-  #leaderboard h2 {margin-top:0;margin-bottom:10px;}
-  #leaderboard .difficulty-title {margin:15px 0 5px 0; font-weight:bold; font-size:18px; border-bottom:1px solid #555; padding-bottom:3px;}
-  #leaderboard ol {text-align:left; padding-left:20px; margin:0 0 10px 0;}
-  #leaderboard button {margin-top:15px; font-size:18px; padding:10px 20px; border:none; background:#007bff; color:white; border-radius:8px; cursor:pointer; width:100%;}
-  #leaderboard button:hover {background:#339cff;}
-  .effect-circle {position:absolute; border:2px solid yellow; border-radius:50%; pointer-events:none; animation:effect-anim 0.5s ease-out forwards; mix-blend-mode:screen; box-shadow:0 0 15px 5px yellow;}
-  @keyframes effect-anim {0%{transform:scale(1);opacity:1;}100%{transform:scale(3);opacity:0;}}
+html, body {margin:0; padding:0; overflow:hidden; background-color:skyblue; font-family:sans-serif; height:100%; user-select:none;}
+#score, #timer {position:absolute; top:10px; font-size:20px; text-shadow:0 0 5px #000; user-select:none;}
+#score{left:10px;} #timer{right:10px;}
+canvas{display:block;}
+#startScreen {position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; background: rgba(0,0,0,0.85); z-index:10;}
+#startScreen input, #startScreen select {font-size:20px; padding:10px; border-radius:8px; border:none; text-align:center; margin-bottom:15px; width:250px; box-sizing:border-box;}
+#startScreen button {font-size:20px; padding:10px 20px; background:#28a745; color:white; border:none; border-radius:8px; cursor:pointer; width:150px;}
+#startScreen button:hover {background:#2ecc71;}
+#leaderboard {position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); padding:30px 40px; border-radius:12px; text-align:center; color:white; max-height:80vh; overflow-y:auto; z-index:20; display:none; width:300px;}
+#leaderboard h2 {margin-top:0;margin-bottom:10px;}
+#leaderboard .difficulty-title {margin:15px 0 5px 0; font-weight:bold; font-size:18px; border-bottom:1px solid #555; padding-bottom:3px;}
+#leaderboard ol {text-align:left; padding-left:20px; margin:0 0 10px 0;}
+#leaderboard button {margin-top:15px; font-size:18px; padding:10px 20px; border:none; background:#007bff; color:white; border-radius:8px; cursor:pointer; width:100%;}
+#leaderboard button:hover {background:#339cff;}
+.effect-circle {position:absolute; border:2px solid yellow; border-radius:50%; pointer-events:none; animation:effect-anim 0.5s ease-out forwards; mix-blend-mode:screen; box-shadow:0 0 15px 5px yellow;}
+@keyframes effect-anim {0%{transform:scale(1);opacity:1;}100%{transform:scale(3);opacity:0;}}
 </style>
 </head>
 <body>
@@ -126,13 +126,19 @@ retryButton.addEventListener("click",()=>{
 });
 
 function startGame(){
-  bgm.currentTime=0; bgm.play();
   score=0; timeLeft=20;
   scoreEl.textContent=`점수: ${score}`;
   timerEl.textContent=`시간: ${timeLeft}`;
   gameRunning=true;
   spawnTargets();
   gameLoop();
+
+  // bgm는 반드시 사용자 클릭 후
+  if(bgm.paused){
+    bgm.currentTime=0;
+    bgm.play().catch(()=>console.log("브라우저 정책으로 인해 자동 재생 실패"));
+  }
+
   timerInterval=setInterval(()=>{
     timeLeft--;
     timerEl.textContent=`시간: ${timeLeft}`;
@@ -150,7 +156,9 @@ function endGame(){
 }
 
 function saveScore(name,score,diff){
-  let allScores=JSON.parse(localStorage.getItem("aimScores")||"{}");
+  if(!name) return;
+  let allScores={};
+  try{ allScores=JSON.parse(localStorage.getItem("aimScores"))||{}; }catch(e){ allScores={}; }
   if(!allScores[diff]) allScores[diff]=[];
   allScores[diff].push({name,score});
   allScores[diff].sort((a,b)=>b.score-a.score);
