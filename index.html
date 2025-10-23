@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>🎯 에임 트레이너</title>
+  <title>DG Aiming</title>
   <style>
     html, body {
       margin: 0;
@@ -131,8 +131,14 @@
     }
 
     @keyframes effect-anim {
-      0% { transform: scale(1); opacity: 1; }
-      100% { transform: scale(3); opacity: 0; }
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(3);
+        opacity: 0;
+      }
     }
   </style>
 </head>
@@ -140,9 +146,10 @@
   <div id="score">점수: 0</div>
   <div id="timer">시간: 20</div>
   <canvas id="gameCanvas"></canvas>
+  <audio id="bgm" src="에임 노래.mp3" preload="auto"></audio>
 
   <div id="startScreen">
-    <h1>🎯 에임 트레이너</h1>
+    <h1>🎯 DG Aiming</h1>
     <input id="nicknameInput" type="text" placeholder="닉네임을 입력하세요" maxlength="15" />
     <select id="difficultySelect">
       <option value="easy">쉬움</option>
@@ -157,9 +164,6 @@
     <div id="leaderboardContents"></div>
     <button id="retryButton">다시 하기</button>
   </div>
-
-  <!-- 🎵 배경 음악 -->
-  <audio id="bgm" src="에임 노래.mp3" preload="auto" loop></audio>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
@@ -193,6 +197,7 @@
       hard: { targetCount: 7, minRadius: 15, maxRadius: 30 }
     };
 
+    // 🎯 대광 로고 이미지
     const markImg = new Image();
     markImg.src = "대광.png";
 
@@ -201,26 +206,23 @@
     }
 
     function createTarget() {
-      const r = random(difficultySettings.minRadius, difficultySettings.maxRadius);
-      const x = random(r, canvas.width - r);
-      const y = random(r, canvas.height - r);
-      return { x, y, r };
+      const radius = random(difficultySettings.minRadius, difficultySettings.maxRadius);
+      const x = random(radius, canvas.width - radius);
+      const y = random(radius, canvas.height - radius);
+      return { x, y, radius };
     }
 
     function spawnTargets() {
       targets = [];
-      for (let i = 0; i < difficultySettings.targetCount; i++) targets.push(createTarget());
+      for (let i = 0; i < difficultySettings.targetCount; i++) {
+        targets.push(createTarget());
+      }
     }
 
     function drawTargets() {
       targets.forEach(t => {
-        const size = t.r * 2;
-        ctx.drawImage(markImg, t.x - t.r, t.y - t.r, size, size);
-        ctx.beginPath();
-        ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = 3;
-        ctx.stroke();
+        const size = t.radius * 2;
+        ctx.drawImage(markImg, t.x - t.radius, t.y - t.radius, size, size);
       });
     }
 
@@ -231,25 +233,25 @@
     }
 
     function createEffect(x, y) {
-      const e = document.createElement("div");
-      e.className = "effect-circle";
-      e.style.left = `${x - 25}px`;
-      e.style.top = `${y - 25}px`;
-      e.style.width = "50px";
-      e.style.height = "50px";
-      document.body.appendChild(e);
-      setTimeout(() => e.remove(), 500);
+      const effect = document.createElement("div");
+      effect.className = "effect-circle";
+      effect.style.left = `${x - 25}px`;
+      effect.style.top = `${y - 25}px`;
+      effect.style.width = "50px";
+      effect.style.height = "50px";
+      document.body.appendChild(effect);
+      setTimeout(() => effect.remove(), 500);
     }
 
     canvas.addEventListener("click", (e) => {
       if (!gameRunning) return;
       const centerIndex = Math.floor(targets.length / 2);
       const centerTarget = targets[centerIndex];
-      const dxC = e.clientX - centerTarget.x;
-      const dyC = e.clientY - centerTarget.y;
-      const distC = Math.hypot(dxC, dyC);
+      const dxCenter = e.clientX - centerTarget.x;
+      const dyCenter = e.clientY - centerTarget.y;
+      const distCenter = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter);
 
-      if (distC < centerTarget.r) {
+      if (distCenter < centerTarget.radius) {
         score += 2;
         scoreEl.textContent = `점수: ${score}`;
         createEffect(centerTarget.x, centerTarget.y);
@@ -262,8 +264,8 @@
         const t = targets[i];
         const dx = e.clientX - t.x;
         const dy = e.clientY - t.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < t.r) {
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < t.radius) {
           score++;
           scoreEl.textContent = `점수: ${score}`;
           targets[i] = createTarget();
@@ -274,7 +276,10 @@
 
     startButton.addEventListener("click", () => {
       const name = nicknameInput.value.trim();
-      if (!name) return alert("닉네임을 입력하세요!");
+      if (name === "") {
+        alert("닉네임을 입력하세요!");
+        return;
+      }
       nickname = name;
       difficulty = difficultySelect.value;
       difficultySettings = difficulties[difficulty];
@@ -289,14 +294,14 @@
     });
 
     function startGame() {
+      bgm.currentTime = 0;
+      bgm.play();
+
       score = 0;
       timeLeft = 20;
       scoreEl.textContent = `점수: ${score}`;
       timerEl.textContent = `시간: ${timeLeft}`;
       gameRunning = true;
-
-      bgm.currentTime = 0;
-      bgm.play().catch(() => console.log("음악 자동재생 차단됨"));
 
       spawnTargets();
       gameLoop();
@@ -311,33 +316,34 @@
     function endGame() {
       gameRunning = false;
       clearInterval(timerInterval);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
       bgm.pause();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       saveScore(nickname, score, difficulty);
       showLeaderboard();
     }
 
     function saveScore(name, score, diff) {
-      let all = JSON.parse(localStorage.getItem("aimScores") || "{}");
-      if (!all[diff]) all[diff] = [];
-      all[diff].push({ name, score });
-      all[diff].sort((a, b) => b.score - a.score);
-      all[diff] = all[diff].slice(0, 10);
-      localStorage.setItem("aimScores", JSON.stringify(all));
+      let allScores = JSON.parse(localStorage.getItem("aimScores") || "{}");
+      if (!allScores[diff]) allScores[diff] = [];
+      allScores[diff].push({ name, score });
+      allScores[diff].sort((a, b) => b.score - a.score);
+      allScores[diff] = allScores[diff].slice(0, 10);
+      localStorage.setItem("aimScores", JSON.stringify(allScores));
     }
 
     function showLeaderboard() {
-      let all = JSON.parse(localStorage.getItem("aimScores") || "{}");
+      let allScores = JSON.parse(localStorage.getItem("aimScores") || "{}");
       leaderboardContents.innerHTML = "";
+
       ["easy", "normal", "hard"].forEach(diff => {
-        const title = document.createElement("div");
-        title.className = "difficulty-title";
-        title.textContent = `${diff === "easy" ? "쉬움" : diff === "normal" ? "보통" : "어려움"} 순위`;
-        leaderboardContents.appendChild(title);
+        const diffTitle = document.createElement("div");
+        diffTitle.className = "difficulty-title";
+        diffTitle.textContent = `${diff === "easy" ? "쉬움" : diff === "normal" ? "보통" : "어려움"} 순위`;
+        leaderboardContents.appendChild(diffTitle);
 
         const ol = document.createElement("ol");
-        const scores = all[diff] || [];
-        if (!scores.length) {
+        const scores = allScores[diff] || [];
+        if (scores.length === 0) {
           const li = document.createElement("li");
           li.textContent = "기록이 없습니다.";
           ol.appendChild(li);
@@ -350,15 +356,17 @@
         }
         leaderboardContents.appendChild(ol);
       });
+
       leaderboard.style.display = "block";
     }
 
-    // 🔑 U 키로 순위 초기화
+    // 🎮 관리자용 U키 순위 초기화
     window.addEventListener("keydown", (e) => {
-      if (e.key.toLowerCase() === "u") {
-        if (confirm("정말 순위를 초기화하시겠습니까?")) {
+      if (e.code === "KeyU") {
+        if (confirm("정말 순위표를 초기화하시겠습니까?")) {
           localStorage.removeItem("aimScores");
-          alert("✅ 순위가 초기화되었습니다!");
+          alert("순위표가 초기화되었습니다.");
+          leaderboardContents.innerHTML = "";
         }
       }
     });
