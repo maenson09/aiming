@@ -2,374 +2,166 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>에임 트레이너 - 난이도별 순위 & 이펙트</title>
+  <title>🎯 에임 연습 게임</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background-color: skyblue;
+    body {
+      text-align: center;
+      background: #111;
       color: white;
-      font-family: sans-serif;
-      user-select: none;
+      font-family: 'Pretendard', sans-serif;
+      overflow: hidden;
     }
 
-    #score, #timer {
-      position: absolute;
-      top: 10px;
-      font-size: 20px;
-    }
-    #score { left: 10px; }
-    #timer { right: 10px; }
-
-    canvas {
+    #gameCanvas {
+      background: #222;
+      border: 2px solid white;
       display: block;
+      margin: 20px auto;
+      cursor: crosshair;
     }
 
     #startScreen {
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      background: rgba(0, 0, 0, 0.5);
     }
 
-    #startScreen input, #startScreen select {
-      font-size: 20px;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      text-align: center;
-      margin-bottom: 15px;
-    }
-
-    #startScreen button {
-      font-size: 20px;
+    button {
+      font-size: 24px;
       padding: 10px 20px;
-      background: #28a745;
-      color: white;
-      border: none;
-      border-radius: 8px;
+      margin-top: 20px;
       cursor: pointer;
-    }
-
-    #startScreen button:hover {
-      background: #2ecc71;
-    }
-
-    #leaderboard {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.8);
-      padding: 20px 40px;
-      border-radius: 12px;
-      text-align: center;
-      display: none;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-
-    #leaderboard h2 { margin-top: 0; margin-bottom: 10px; }
-
-    .leaderboard-section {
-      margin-bottom: 20px;
-    }
-
-    .leaderboard-section h3 {
-      margin-bottom: 8px;
-      border-bottom: 1px solid #555;
-      padding-bottom: 5px;
-    }
-
-    #leaderboard ol {
-      text-align: left;
-      padding-left: 20px;
-      margin: 0;
-    }
-
-    #leaderboard button {
-      margin-top: 15px;
-      font-size: 18px;
-      padding: 10px 20px;
+      border-radius: 10px;
       border: none;
-      background: #007bff;
+      background: #4CAF50;
       color: white;
-      border-radius: 8px;
-      cursor: pointer;
+      transition: 0.3s;
     }
 
-    #leaderboard button:hover {
-      background: #339cff;
+    button:hover {
+      background: #66BB6A;
     }
   </style>
 </head>
 <body>
-  <div id="score">점수: 0</div>
-  <div id="timer">시간: 20</div>
-  <canvas id="gameCanvas"></canvas>
-
   <div id="startScreen">
-    <h1>🎯 에임 트레이너</h1>
-    <input id="nicknameInput" type="text" placeholder="닉네임을 입력하세요" />
-    <select id="difficultySelect">
-      <option value="easy">쉬움</option>
-      <option value="normal" selected>보통</option>
-      <option value="hard">어려움</option>
-    </select>
-    <button id="startButton">게임 시작</button>
+    <h1>🎯 에임 연습 게임</h1>
+    <button onclick="startGame()">게임 시작</button>
   </div>
 
-  <div id="leaderboard">
-    <h2>🏆 순위표</h2>
-    <div id="easyScores" class="leaderboard-section">
-      <h3>쉬움</h3>
-      <ol></ol>
-    </div>
-    <div id="normalScores" class="leaderboard-section">
-      <h3>보통</h3>
-      <ol></ol>
-    </div>
-    <div id="hardScores" class="leaderboard-section">
-      <h3>어려움</h3>
-      <ol></ol>
-    </div>
-    <button id="retryButton">다시 하기</button>
-  </div>
+  <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+  <!-- 🎵 같은 폴더에 "에임 노래.mp3" 파일이 있어야 함 -->
+  <audio id="bgm" src="에임 노래.mp3" preload="auto"></audio>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const scoreEl = document.getElementById("score");
-    const timerEl = document.getElementById("timer");
+    const bgm = document.getElementById("bgm");
     const startScreen = document.getElementById("startScreen");
-    const startButton = document.getElementById("startButton");
-    const nicknameInput = document.getElementById("nicknameInput");
-    const difficultySelect = document.getElementById("difficultySelect");
-    const leaderboard = document.getElementById("leaderboard");
-    const easyScoresOl = document.querySelector("#easyScores ol");
-    const normalScoresOl = document.querySelector("#normalScores ol");
-    const hardScoresOl = document.querySelector("#hardScores ol");
-    const retryButton = document.getElementById("retryButton");
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // 타겟 이미지 로드
-    const targetImg = new Image();
-    targetImg.src = "대광.png";
-
-    let nickname = "";
-    let score = 0;
-    let timeLeft = 20; // 20초
-    let gameRunning = false;
     let targets = [];
+    let score = 0;
+    let timeLeft = 20;
+    let gameRunning = false;
     let timerInterval;
-    let difficultySettings;
-    let difficultyKey = "normal"; // 현재 선택된 난이도
 
-    const difficulties = {
-      easy: { targetCount: 3, minRadius: 30, maxRadius: 50 },
-      normal: { targetCount: 5, minRadius: 20, maxRadius: 40 },
-      hard: { targetCount: 7, minRadius: 15, maxRadius: 30 }
-    };
-
-    // 파티클 이펙트용 배열
-    let particles = [];
-
-    function random(min, max) {
-      return Math.random() * (max - min) + min;
-    }
-
-    function createTarget() {
-      const radius = random(difficultySettings.minRadius, difficultySettings.maxRadius);
-      const x = random(radius, canvas.width - radius);
-      const y = random(radius, canvas.height - radius);
-      return { x, y, radius };
-    }
-
+    // 🎯 타겟 생성
     function spawnTargets() {
       targets = [];
-      for (let i = 0; i < difficultySettings.targetCount; i++) {
-        targets.push(createTarget());
-      }
-    }
-
-    function drawTargets() {
-      targets.forEach(t => {
-        if (targetImg.complete) {
-          ctx.drawImage(
-            targetImg,
-            t.x - t.radius,
-            t.y - t.radius,
-            t.radius * 2,
-            t.radius * 2
-          );
-        } else {
-          ctx.beginPath();
-          ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2);
-          ctx.fillStyle = "red";
-          ctx.fill();
-          ctx.strokeStyle = "white";
-          ctx.lineWidth = 3;
-          ctx.stroke();
-        }
-      });
-    }
-
-    // 파티클 생성
-    function createParticles(x, y) {
-      for (let i = 0; i < 15; i++) {
-        particles.push({
-          x: x,
-          y: y,
-          radius: random(2, 4),
-          alpha: 1,
-          speedX: random(-2, 2),
-          speedY: random(-2, 2),
-          life: 30
+      for (let i = 0; i < 3; i++) {
+        targets.push({
+          x: Math.random() * (canvas.width - 50) + 25,
+          y: Math.random() * (canvas.height - 50) + 25,
+          r: 25
         });
       }
     }
 
-    // 파티클 그리기 & 업데이트
-    function updateParticles() {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.speedX;
-        p.y += p.speedY;
-        p.alpha -= 0.03;
-        p.life--;
-        if (p.alpha <= 0 || p.life <= 0) {
-          particles.splice(i, 1);
-          continue;
-        }
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
-        ctx.fill();
-      }
-    }
-
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawTargets();
-      updateParticles();
-      if (gameRunning) requestAnimationFrame(gameLoop);
-    }
-
-    canvas.addEventListener("click", (e) => {
-      if (!gameRunning) return;
-
-      for (let i = 0; i < targets.length; i++) {
-        const t = targets[i];
-        const dx = e.clientX - t.x;
-        const dy = e.clientY - t.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < t.radius) {
-          if (distance < t.radius * 0.3) {
-            score += 2;
-            createParticles(t.x, t.y); // 중앙 클릭 이펙트 발생
-          } else {
-            score += 1;
-          }
-          scoreEl.textContent = `점수: ${score}`;
-          targets[i] = createTarget();
-          return;
-        }
-      }
-    });
-
-    startButton.addEventListener("click", () => {
-      const name = nicknameInput.value.trim();
-      if (name === "") {
-        alert("닉네임을 입력하세요!");
-        return;
-      }
-      nickname = name;
-      difficultyKey = difficultySelect.value;
-      difficultySettings = difficulties[difficultyKey];
-      startScreen.style.display = "none";
-      startGame();
-    });
-
-    retryButton.addEventListener("click", () => {
-      leaderboard.style.display = "none";
-      startScreen.style.display = "flex";
-      nicknameInput.value = "";
-    });
-
+    // 🎮 게임 시작
     function startGame() {
+      // 배경음악 재생 (사용자 클릭으로 허용됨)
+      bgm.currentTime = 0;
+      bgm.volume = 0.7;
+      bgm.play().catch(err => console.log("자동재생 차단됨:", err));
+
+      startScreen.style.display = "none";
       score = 0;
       timeLeft = 20;
-      scoreEl.textContent = `점수: ${score}`;
-      timerEl.textContent = `시간: ${timeLeft}`;
       gameRunning = true;
-      particles = [];
       spawnTargets();
       gameLoop();
 
       timerInterval = setInterval(() => {
         timeLeft--;
-        timerEl.textContent = `시간: ${timeLeft}`;
         if (timeLeft <= 0) endGame();
       }, 1000);
     }
 
+    // 🎯 마우스 클릭 시 맞추기
+    canvas.addEventListener("click", (e) => {
+      if (!gameRunning) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      targets.forEach((t, i) => {
+        const dist = Math.hypot(x - t.x, y - t.y);
+        if (dist < t.r) {
+          score++;
+          targets.splice(i, 1);
+          targets.push({
+            x: Math.random() * (canvas.width - 50) + 25,
+            y: Math.random() * (canvas.height - 50) + 25,
+            r: 25
+          });
+        }
+      });
+    });
+
+    // 🎬 게임 루프
+    function gameLoop() {
+      if (!gameRunning) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 타겟 그리기
+      ctx.fillStyle = "red";
+      targets.forEach(t => {
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 점수 표시
+      ctx.fillStyle = "white";
+      ctx.font = "20px Pretendard";
+      ctx.fillText(`점수: ${score}`, 20, 30);
+      ctx.fillText(`시간: ${timeLeft}`, 720, 30);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ⏹ 게임 종료
     function endGame() {
       gameRunning = false;
       clearInterval(timerInterval);
+      bgm.pause();
+      bgm.currentTime = 0;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      saveScore(nickname, score, difficultyKey);
-      showLeaderboard();
+      ctx.fillStyle = "white";
+      ctx.font = "32px Pretendard";
+      ctx.fillText(`게임 종료! 점수: ${score}`, 300, 250);
+
+      setTimeout(() => {
+        startScreen.style.display = "flex";
+      }, 2000);
     }
-
-    // 난이도별로 점수 저장
-    function saveScore(name, score, difficulty) {
-      let scores = JSON.parse(localStorage.getItem(`aimScores_${difficulty}`) || "[]");
-      scores.push({ name, score });
-      scores.sort((a, b) => b.score - a.score);
-      scores = scores.slice(0, 10);
-      localStorage.setItem(`aimScores_${difficulty}`, JSON.stringify(scores));
-    }
-
-    function showLeaderboard() {
-      // 각각 난이도 점수 가져와서 표시
-      const easyScores = JSON.parse(localStorage.getItem("aimScores_easy") || "[]");
-      const normalScores = JSON.parse(localStorage.getItem("aimScores_normal") || "[]");
-      const hardScores = JSON.parse(localStorage.getItem("aimScores_hard") || "[]");
-
-      function fillList(olElem, scores) {
-        olElem.innerHTML = "";
-        if (scores.length === 0) {
-          const li = document.createElement("li");
-          li.textContent = "기록 없음";
-          olElem.appendChild(li);
-          return;
-        }
-        scores.forEach((s, i) => {
-          const li = document.createElement("li");
-          li.textContent = `${i + 1}. ${s.name} — ${s.score}점`;
-          olElem.appendChild(li);
-        });
-      }
-
-      fillList(easyScoresOl, easyScores);
-      fillList(normalScoresOl, normalScores);
-      fillList(hardScoresOl, hardScores);
-
-      leaderboard.style.display = "block";
-    }
-
-    window.addEventListener("resize", () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    });
   </script>
 </body>
 </html>
