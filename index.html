@@ -15,7 +15,7 @@ canvas{display:block;}
 #leaderboard {position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); padding:30px 40px; border-radius:12px; text-align:center; color:white; max-height:80vh; overflow-y:auto; z-index:20; display:none; width:300px;}
 #leaderboard h2 {margin-top:0;margin-bottom:10px;}
 #leaderboard .difficulty-title {margin:15px 0 5px 0; font-weight:bold; font-size:18px; border-bottom:1px solid #555; padding-bottom:3px;}
-#leaderboard ol {text-align:left; padding-left:20px; margin:0 0 10px 0;}
+#leaderboard ol {text-align:left; padding-left:20px; margin:0 0 10px 0; list-style-type: decimal !important;}
 #leaderboard button {margin-top:15px; font-size:18px; padding:10px 20px; border:none; background:#007bff; color:white; border-radius:8px; cursor:pointer; width:100%;}
 #leaderboard button:hover {background:#339cff;}
 .effect-circle {position:absolute; border:2px solid yellow; border-radius:50%; pointer-events:none; animation:effect-anim 0.5s ease-out forwards; mix-blend-mode:screen; box-shadow:0 0 15px 5px yellow;}
@@ -116,7 +116,6 @@ startButton.addEventListener("click",()=>{
   difficulty=difficultySelect.value;
   difficultySettings=difficulties[difficulty];
 
-  // bgm 재생
   bgm.currentTime=0;
   bgm.play().catch(()=>console.log("자동재생 실패"));
 
@@ -159,8 +158,8 @@ function saveScore(name,score,diff){
   let allScores={};
   try{ allScores=JSON.parse(localStorage.getItem("aimScores"))||{}; }catch(e){ allScores={}; }
   if(!allScores[diff]) allScores[diff]=[];
-  allScores[diff].push({name,score});
-  allScores[diff].sort((a,b)=>b.score-b.score);
+  allScores[diff].push({name,score:Number(score)});
+  allScores[diff].sort((a,b)=>b.score - a.score); // 숫자로 정렬
   allScores[diff]=allScores[diff].slice(0,10);
   localStorage.setItem("aimScores",JSON.stringify(allScores));
 }
